@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trivia FireSticks</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="app" class="app" tabindex="0" aria-live="polite">
+      <section id="screen-start" class="screen screen-start active" aria-label="Pantalla de inicio"></section>
+
+      <section id="screen-register" class="screen screen-register" aria-label="Pantalla de registro">
+        <form id="register-form" class="register-form" autocomplete="off">
+          <label class="field field-name">
+            <img src="Images/Casilla_Nombre.png" alt="" aria-hidden="true" />
+            <input id="name" name="name" type="text" placeholder="Nombre" aria-label="Nombre" readonly />
+          </label>
+
+          <label class="field field-email">
+            <img src="Images/Casilla_Correo.png" alt="" aria-hidden="true" />
+            <input id="email" name="email" type="email" placeholder="Correo" aria-label="Correo" readonly />
+          </label>
+
+          <button class="continue-button" type="submit" aria-label="Continuar">
+            <img src="Images/Btn_Continuar.png" alt="" aria-hidden="true" />
+          </button>
+        </form>
+
+        <div id="touch-keyboard" class="touch-keyboard" aria-label="Teclado tactil">
+          <div id="keyboard-keys" class="keyboard-keys"></div>
+        </div>
+      </section>
+
+      <section id="screen-trivia" class="screen screen-trivia" aria-label="Pregunta 1">
+        <div class="trivia-content">
+          <p id="question-count" class="question-count">Pregunta 1</p>
+          <h1 id="question-text" class="question-text">¿Cuál es el concepto central de Tech HR Day 2026?</h1>
+
+          <div id="answer-options" class="answer-options" role="group" aria-label="Opciones de respuesta">
+            <button class="answer-option" type="button" data-answer="A"></button>
+            <button class="answer-option" type="button" data-answer="B"></button>
+            <button class="answer-option" type="button" data-answer="C"></button>
+            <button class="answer-option" type="button" data-answer="D"></button>
+          </div>
+
+          <button id="trivia-continue" class="trivia-continue" type="button" aria-label="Continuar">
+            <img src="Images/Btn_Continuar.png" alt="" aria-hidden="true" />
+          </button>
+        </div>
+      </section>
+
+      <section id="screen-thanks" class="screen screen-thanks" aria-label="Pantalla de agradecimiento">
+        <div class="final-result">
+          <p id="final-score" class="final-score">0 pts</p>
+          <p id="prize-message" class="prize-message">Gracias por participar.</p>
+        </div>
+
+        <button id="finish-button" class="finish-button" type="button" aria-label="Finalizar">
+          <img src="Images/Btn_Finalizar.png" alt="" aria-hidden="true" />
+        </button>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
