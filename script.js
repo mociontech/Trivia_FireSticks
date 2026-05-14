@@ -7,6 +7,9 @@ const registerForm = document.querySelector("#register-form");
 const keyboard = document.querySelector("#touch-keyboard");
 const keyboardKeys = document.querySelector("#keyboard-keys");
 const textFields = document.querySelectorAll(".field input");
+const nameInput = document.querySelector("#name");
+const emailInput = document.querySelector("#email");
+const registerContinue = document.querySelector(".continue-button");
 const questionCount = document.querySelector("#question-count");
 const questionText = document.querySelector("#question-text");
 const answerOptions = document.querySelectorAll(".answer-option");
@@ -14,9 +17,23 @@ const triviaContinue = document.querySelector("#trivia-continue");
 const finalScore = document.querySelector("#final-score");
 const prizeMessage = document.querySelector("#prize-message");
 const finishButton = document.querySelector("#finish-button");
+const debugLog = document.querySelector("#debug-log");
+const debugLogBody = document.querySelector("#debug-log-body");
+const debugLogClear = document.querySelector("#debug-log-clear");
 
 const PERFECT_TIME_LIMIT = 15000;
 const MAX_SCORE = 1000;
+const DATAHUB_PENDING_KEY = "triviaFireSticksPendingDatahub";
+const DATAHUB_CONFIG = {
+  enabled: false,
+  baseUrl: "",
+  eventId: "",
+  experienceId: "",
+  token: "",
+  source: "trivia-firesticks",
+  debug: true,
+  ...(window.TRIVIA_DATAHUB_CONFIG || {}),
+};
 
 let activeInput = null;
 let currentQuestionIndex = 0;
@@ -55,16 +72,6 @@ const questions = [
     correctAnswer: "C",
   },
   {
-    text: "¿Cuál de estas experiencias podría hacer parte de un evento gamificado por Mocion?",
-    options: {
-      A: "Una fila sin interacción",
-      B: "Un discurso de 3 horas sin pausas",
-      C: "Un juego interactivo con ranking, puntajes y premios",
-      D: "Una mesa vacía con folletos",
-    },
-    correctAnswer: "C",
-  },
-  {
     text: "¿Qué busca impulsar Tech HR Day 2026 dentro de las organizaciones?",
     options: {
       A: "Automatización total",
@@ -95,16 +102,6 @@ const questions = [
     correctAnswer: "B",
   },
   {
-    text: "¿Cuál es una de las grandes ventajas de gamificar un evento?",
-    options: {
-      A: "Que las personas participen más, se diviertan y recuerden mejor la marca",
-      B: "Que nadie se acerque al stand",
-      C: "Que el evento sea más silencioso",
-      D: "Que los premios se queden guardados",
-    },
-    correctAnswer: "A",
-  },
-  {
     text: "Según el concepto del evento, ¿Qué potencia el desempeño de los equipos?",
     options: {
       A: "La jerarquía",
@@ -114,19 +111,10 @@ const questions = [
     },
     correctAnswer: "B",
   },
-  {
-    text: "En el mundo de Mocion, una experiencia exitosa no solo debe verse bien, también debe...",
-    options: {
-      A: "Ser medible, interactiva y generar valor para la marca",
-      B: "Durar máximo 10 segundos",
-      C: "Tener muchas sillas",
-      D: "No usar tecnología",
-    },
-    correctAnswer: "A",
-  },
 ];
 
 const defaultKeyboardRows = [
+  ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
   ["Z", "X", "C", "V", "B", "N", "M"],
@@ -134,6 +122,7 @@ const defaultKeyboardRows = [
 ];
 
 const emailKeyboardRows = [
+  ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
   ["Z", "X", "C", "V", "B", "N", "M", "@", ".", "_"],
@@ -147,7 +136,7 @@ function showRegisterScreen() {
 
 function showKeyboard(input) {
   activeInput = input;
-  renderKeyboard(input.type === "email" ? emailKeyboardRows : defaultKeyboardRows);
+  renderKeyboard(input.id === "email" ? emailKeyboardRows : defaultKeyboardRows);
   keyboard.classList.add("visible");
   input.focus({ preventScroll: true });
 }
@@ -155,6 +144,14 @@ function showKeyboard(input) {
 function hideKeyboard() {
   keyboard.classList.remove("visible");
   activeInput = null;
+}
+
+function isRegisterComplete() {
+  return Boolean(nameInput.value.trim() && emailInput.value.trim());
+}
+
+function updateRegisterState() {
+  registerContinue.disabled = !isRegisterComplete();
 }
 
 function showTriviaScreen() {
@@ -176,11 +173,205 @@ function calculatePoints(correctAnswers, elapsedTime) {
   return Math.round(basePoints * timeMultiplier);
 }
 
+function isDatahubReady() {
+  return Boolean(
+    DATAHUB_CONFIG.enabled &&
+      DATAHUB_CONFIG.baseUrl &&
+      DATAHUB_CONFIG.eventId &&
+      DATAHUB_CONFIG.experienceId &&
+      DATAHUB_CONFIG.token,
+  );
+}
+
+function addDebugLog(message, type = "info") {
+  if (!DATAHUB_CONFIG.debug || !debugLogBody) {
+    return;
+  }
+
+  const entry = document.createElement("div");
+  const time = new Date().toLocaleTimeString("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  entry.className = `debug-log-entry ${type}`;
+  entry.textContent = `[${time}] ${message}`;
+  debugLogBody.prepend(entry);
+}
+
+function getMaskedToken() {
+  if (!DATAHUB_CONFIG.token) {
+    return "";
+  }
+
+  return `${DATAHUB_CONFIG.token.slice(0, 12)}...${DATAHUB_CONFIG.token.slice(-8)}`;
+}
+
+function toggleDebugLog() {
+  debugLog.classList.toggle("visible");
+}
+
+function normalizeBaseUrl(url) {
+  return url.replace(/\/+$/, "");
+}
+
+function buildDatahubUrl(endpoint) {
+  return `${normalizeBaseUrl(DATAHUB_CONFIG.baseUrl)}${endpoint}`;
+}
+
+function getPlayerData() {
+  return {
+    fullName: document.querySelector("#name").value.trim(),
+    email: document.querySelector("#email").value.trim().toLowerCase(),
+  };
+}
+
+function getPendingSubmissions() {
+  try {
+    const pending = JSON.parse(localStorage.getItem(DATAHUB_PENDING_KEY));
+    return Array.isArray(pending) ? pending : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePendingSubmissions(submissions) {
+  localStorage.setItem(DATAHUB_PENDING_KEY, JSON.stringify(submissions));
+}
+
+function queueDatahubSubmission(submission) {
+  savePendingSubmissions([...getPendingSubmissions(), submission]);
+  addDebugLog(`Envio en cola local: ${submission.email || "sin correo"}`, "info");
+}
+
+async function postDatahubBatch(endpoint, records, sentAt) {
+  addDebugLog(`POST ${endpoint} · ${records.length} record(s)`, "info");
+  const payload = {
+    eventId: DATAHUB_CONFIG.eventId,
+    experienceId: DATAHUB_CONFIG.experienceId,
+    source: DATAHUB_CONFIG.source,
+    sentAt,
+    records,
+  };
+
+  addDebugLog(`URL: ${buildDatahubUrl(endpoint)}`, "info");
+  addDebugLog(`AUTH: Bearer ${getMaskedToken()}`, "info");
+  addDebugLog(`JSON: ${JSON.stringify(payload)}`, "info");
+
+  const response = await fetch(buildDatahubUrl(endpoint), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${DATAHUB_CONFIG.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Datahub ${endpoint} respondio ${response.status}`);
+  }
+
+  const data = await response.json();
+  addDebugLog(`${endpoint} OK · processed=${data.processed ?? "?"} failed=${data.failed ?? "?"}`, "success");
+  return data;
+}
+
+async function flushPendingDatahubSubmissions() {
+  if (!isDatahubReady()) {
+    addDebugLog("Datahub sin configurar. No se reintenta cola local.", "info");
+    return;
+  }
+
+  const pending = getPendingSubmissions();
+
+  if (!pending.length) {
+    addDebugLog("Sin envios pendientes.", "info");
+    return;
+  }
+
+  addDebugLog(`Reintentando ${pending.length} envio(s) pendiente(s).`, "info");
+  const failed = [];
+
+  for (const submission of pending) {
+    try {
+      await sendDatahubSubmission(submission, false);
+    } catch {
+      failed.push(submission);
+    }
+  }
+
+  savePendingSubmissions(failed);
+  addDebugLog(`Reintento terminado. Pendientes restantes: ${failed.length}.`, failed.length ? "error" : "success");
+}
+
+async function sendDatahubSubmission(submission, queueOnFailure = true) {
+  if (!isDatahubReady()) {
+    addDebugLog("Datahub incompleto: falta enabled/baseUrl/eventId/experienceId/token.", "error");
+
+    if (queueOnFailure) {
+      queueDatahubSubmission(submission);
+    }
+
+    return;
+  }
+
+  try {
+    await postDatahubBatch(
+      "/experiences",
+      [
+        {
+          email: submission.email,
+          play_timestamp: submission.completedAt,
+          score: submission.points,
+          data: {
+            fullName: submission.fullName,
+            correctAnswers: submission.correctAnswers,
+            totalQuestions: submission.totalQuestions,
+            elapsedMs: submission.elapsedMs,
+            maxScore: MAX_SCORE,
+            perfectTimeLimitMs: PERFECT_TIME_LIMIT,
+          },
+        },
+      ],
+      submission.completedAt,
+    );
+
+    addDebugLog(`Envio completo: ${submission.email}`, "success");
+  } catch (error) {
+    console.warn("No se pudo enviar a Datahub. Se guardara para reintento.", error);
+    addDebugLog(`Error Datahub: ${error.message}`, "error");
+
+    if (queueOnFailure) {
+      queueDatahubSubmission(submission);
+    }
+  }
+}
+
+function submitResultToDatahub(result) {
+  const player = getPlayerData();
+
+  if (!player.fullName || !player.email) {
+    addDebugLog("No se envia: registro incompleto.", "error");
+    return;
+  }
+
+  addDebugLog(`Preparando envio: ${player.email} · ${result.points} pts`, "info");
+  sendDatahubSubmission({
+    ...player,
+    points: result.points,
+    correctAnswers: score,
+    totalQuestions: questions.length,
+    elapsedMs: result.elapsedTime,
+    completedAt: new Date().toISOString(),
+  });
+}
+
 function getFinalResult() {
   const elapsedTime = performance.now() - quizStartTime;
   const points = calculatePoints(score, elapsedTime);
 
-  return { points };
+  return { points, elapsedTime };
 }
 
 function showThanksScreen() {
@@ -189,12 +380,14 @@ function showThanksScreen() {
   thanksScreen.classList.add("active");
   finalScore.textContent = `${result.points} pts`;
   prizeMessage.textContent = "";
+  submitResultToDatahub(result);
 }
 
 function restartQuiz() {
   currentQuestionIndex = 0;
   score = 0;
   registerForm.reset();
+  updateRegisterState();
   thanksScreen.classList.remove("active");
   startScreen.classList.add("active");
   app.focus();
@@ -247,7 +440,12 @@ function insertAtCursor(input, value) {
   const end = input.selectionEnd ?? input.value.length;
   input.value = `${input.value.slice(0, start)}${value}${input.value.slice(end)}`;
   const nextPosition = start + value.length;
-  input.setSelectionRange(nextPosition, nextPosition);
+
+  if (typeof input.setSelectionRange === "function") {
+    input.setSelectionRange(nextPosition, nextPosition);
+  }
+
+  updateRegisterState();
 }
 
 function deleteAtCursor(input) {
@@ -256,13 +454,23 @@ function deleteAtCursor(input) {
 
   if (start !== end) {
     input.value = `${input.value.slice(0, start)}${input.value.slice(end)}`;
-    input.setSelectionRange(start, start);
+
+    if (typeof input.setSelectionRange === "function") {
+      input.setSelectionRange(start, start);
+    }
+
+    updateRegisterState();
     return;
   }
 
   if (start > 0) {
     input.value = `${input.value.slice(0, start - 1)}${input.value.slice(end)}`;
-    input.setSelectionRange(start - 1, start - 1);
+
+    if (typeof input.setSelectionRange === "function") {
+      input.setSelectionRange(start - 1, start - 1);
+    }
+
+    updateRegisterState();
   }
 }
 
@@ -271,14 +479,28 @@ startScreen.addEventListener("pointerdown", showRegisterScreen);
 app.addEventListener("keydown", (event) => {
   const advanceKeys = ["Enter", " ", "Spacebar", "OK"];
 
+  if (event.key.toLowerCase() === "l") {
+    toggleDebugLog();
+  }
+
   if (startScreen.classList.contains("active") && advanceKeys.includes(event.key)) {
     event.preventDefault();
     showRegisterScreen();
   }
 });
 
+debugLogClear.addEventListener("pointerdown", () => {
+  debugLogBody.innerHTML = "";
+  addDebugLog("Log limpiado.", "info");
+});
+
 registerForm.addEventListener("submit", (event) => {
   event.preventDefault();
+
+  if (!isRegisterComplete()) {
+    return;
+  }
+
   showTriviaScreen();
 });
 
@@ -347,4 +569,7 @@ triviaContinue.addEventListener("pointerdown", () => {
 
 finishButton.addEventListener("pointerdown", restartQuiz);
 
+addDebugLog("Log listo. Presiona L para mostrar u ocultar.", "info");
+flushPendingDatahubSubmissions();
+updateRegisterState();
 app.focus();

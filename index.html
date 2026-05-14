@@ -19,7 +19,7 @@
 
           <label class="field field-email">
             <img src="Images/Casilla_Correo.png" alt="" aria-hidden="true" />
-            <input id="email" name="email" type="email" placeholder="Correo" aria-label="Correo" readonly />
+            <input id="email" name="email" type="text" placeholder="Correo" aria-label="Correo" readonly />
           </label>
 
           <button class="continue-button" type="submit" aria-label="Continuar">
@@ -60,8 +60,17 @@
           <img src="Images/Btn_Finalizar.png" alt="" aria-hidden="true" />
         </button>
       </section>
+
+      <aside id="debug-log" class="debug-log" aria-label="Log de envios Datahub">
+        <div class="debug-log-header">
+          <span>DATA LOG</span>
+          <button id="debug-log-clear" type="button">Limpiar</button>
+        </div>
+        <div id="debug-log-body" class="debug-log-body"></div>
+      </aside>
     </main>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
